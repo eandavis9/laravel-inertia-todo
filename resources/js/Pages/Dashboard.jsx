@@ -1,108 +1,46 @@
-import { usePage, Link, Head, router } from '@inertiajs/react';
+import { usePage, Link, Head } from '@inertiajs/react';
+import TopNav from '../Components/TopNav';
 
-const ROLE_BADGE_COLORS = {
-    admin: 'bg-red-100 text-red-700',
-    teacher: 'bg-purple-100 text-purple-700',
-    student: 'bg-green-100 text-green-700',
+const ROLE_CONTENT = {
+    admin: {
+        description: 'You have full access to all features.',
+        links: [
+            { label: 'Manage Todos', href: 'todos.index', primary: true },
+            { label: 'Manage Users', href: 'dashboard', primary: false },
+        ],
+    },
+    teacher: {
+        description: 'You can manage student records and your profile.',
+        links: [{ label: 'My Todos', href: 'todos.index', primary: true }],
+    },
+    student: {
+        description: 'You can view your records and profile.',
+        links: [{ label: 'My Todos', href: 'todos.index', primary: true }],
+    },
 };
 
-function RoleBadge({ role }) {
-    const colorClass = ROLE_BADGE_COLORS[role] ?? 'bg-gray-100 text-gray-700';
-    return (
-        <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-semibold capitalize ${colorClass}`}>
-            {role}
-        </span>
-    );
-}
-
-function AdminContent() {
-    return (
-        <div className="rounded-lg bg-white px-6 py-6 shadow-sm">
-            <p className="text-gray-600 mb-4">You have full access to all features.</p>
-            <div className="flex flex-wrap gap-3">
-                <Link
-                    href={route('todos.index')}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                >
-                    Manage Todos
-                </Link>
-                <Link
-                    href={route('dashboard')}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
-                >
-                    Manage Users
-                </Link>
-            </div>
-        </div>
-    );
-}
-
-function TeacherContent() {
-    return (
-        <div className="rounded-lg bg-white px-6 py-6 shadow-sm">
-            <p className="text-gray-600 mb-4">You can manage student records and your profile.</p>
-            <div className="flex flex-wrap gap-3">
-                <Link
-                    href={route('todos.index')}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                >
-                    My Todos
-                </Link>
-            </div>
-        </div>
-    );
-}
-
-function StudentContent() {
-    return (
-        <div className="rounded-lg bg-white px-6 py-6 shadow-sm">
-            <p className="text-gray-600 mb-4">You can view your records and profile.</p>
-            <div className="flex flex-wrap gap-3">
-                <Link
-                    href={route('todos.index')}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                >
-                    My Todos
-                </Link>
-            </div>
-        </div>
-    );
-}
-
 function RoleContent({ role }) {
-    if (role === 'admin') return <AdminContent />;
-    if (role === 'teacher') return <TeacherContent />;
-    return <StudentContent />;
-}
-
-function TopNav({ user }) {
-    function handleLogout() {
-        router.post(route('logout'));
-    }
+    const content = ROLE_CONTENT[role] ?? ROLE_CONTENT.student;
 
     return (
-        <nav className="bg-white shadow-sm">
-            <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-800">{user.name}</span>
-                    <RoleBadge role={user.role} />
-                </div>
-                <div className="flex items-center gap-3">
+        <div className="rounded-lg bg-white px-6 py-6 shadow-sm">
+            <p className="text-gray-600 mb-4">{content.description}</p>
+            <div className="flex flex-wrap gap-3">
+                {content.links.map((link) => (
                     <Link
-                        href={route('todos.index')}
-                        className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
+                        key={link.href + link.label}
+                        href={route(link.href)}
+                        className={
+                            link.primary
+                                ? 'rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors'
+                                : 'rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors'
+                        }
                     >
-                        Todos
+                        {link.label}
                     </Link>
-                    <button
-                        onClick={handleLogout}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
-                    >
-                        Logout
-                    </button>
-                </div>
+                ))}
             </div>
-        </nav>
+        </div>
     );
 }
 
@@ -136,7 +74,7 @@ export default function Dashboard() {
                         <RoleContent role={user.role} />
                     </div>
 
-                    {/* Quick stats card */}
+                    {/* Quick links card */}
                     <div className="rounded-lg bg-white px-6 py-6 shadow-sm">
                         <h2 className="mb-4 text-lg font-semibold text-gray-700">Quick Links</h2>
                         <div className="flex flex-wrap gap-3">

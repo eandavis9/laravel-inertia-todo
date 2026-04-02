@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(php artisan:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(git -C /c/Users/YS-RDAVIS/Desktop/projects/laravel-inertia-todo commit -m ':*)",
+      "Bash(git -C /c/Users/YS-RDAVIS/Desktop/projects/laravel-inertia-todo push -u origin master)",
+      "Bash(vendor/bin/pint --dirty --format agent)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ]
 }

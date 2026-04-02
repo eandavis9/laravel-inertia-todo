@@ -1,55 +1,9 @@
-import { useForm, router, usePage, Link, Head } from '@inertiajs/react';
-
-const ROLE_BADGE_COLORS = {
-    admin: 'bg-red-100 text-red-700',
-    teacher: 'bg-purple-100 text-purple-700',
-    student: 'bg-green-100 text-green-700',
-};
-
-function RoleBadge({ role }) {
-    const colorClass = ROLE_BADGE_COLORS[role] ?? 'bg-gray-100 text-gray-700';
-    return (
-        <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-semibold capitalize ${colorClass}`}>
-            {role}
-        </span>
-    );
-}
-
-function TopNav({ user }) {
-    function handleLogout() {
-        router.post(route('logout'));
-    }
-
-    return (
-        <nav className="bg-white shadow-sm">
-            <div className="mx-auto max-w-lg px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-800">{user.name}</span>
-                    <RoleBadge role={user.role} />
-                </div>
-                <div className="flex items-center gap-3">
-                    <Link
-                        href={route('dashboard')}
-                        className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
-                    >
-                        Dashboard
-                    </Link>
-                    <button
-                        onClick={handleLogout}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
-                    >
-                        Logout
-                    </button>
-                </div>
-            </div>
-        </nav>
-    );
-}
+import { useForm, router, usePage, Head } from '@inertiajs/react';
+import TopNav from '../../Components/TopNav';
 
 function TodoItem({ todo, onToggle, onDelete }) {
     return (
         <li className="flex items-center gap-3 rounded-lg bg-white px-4 py-3 shadow-sm">
-            {/* Checkbox */}
             <button
                 onClick={() => onToggle(todo)}
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
@@ -70,7 +24,6 @@ function TodoItem({ todo, onToggle, onDelete }) {
                 )}
             </button>
 
-            {/* Title */}
             <span
                 className={`flex-1 text-gray-800 ${
                     todo.completed ? 'line-through text-gray-400' : ''
@@ -79,7 +32,6 @@ function TodoItem({ todo, onToggle, onDelete }) {
                 {todo.title}
             </span>
 
-            {/* Delete */}
             <button
                 onClick={() => onDelete(todo)}
                 className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"
@@ -152,7 +104,7 @@ export default function Index({ todos }) {
         <>
             <Head title="My Todos" />
             <div className="min-h-screen bg-gray-50">
-                {user && <TopNav user={user} />}
+                {user && <TopNav user={user} maxWidth="max-w-lg" />}
 
                 <div className="py-12">
                     <div className="mx-auto max-w-lg px-4">
