@@ -64,7 +64,11 @@ COPY --from=node-builder /app/public/build ./public/build
 
 RUN composer dump-autoload --optimize --no-dev
 
-RUN chown -R www-data:www-data /var/www/html/storage \
+RUN mkdir -p /var/www/html/storage/framework/views \
+    && mkdir -p /var/www/html/storage/framework/cache/data \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && mkdir -p /var/www/html/storage/logs \
+    && chown -R www-data:www-data /var/www/html/storage \
     && chown -R www-data:www-data /var/www/html/bootstrap/cache \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
