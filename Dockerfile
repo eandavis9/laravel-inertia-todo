@@ -83,7 +83,9 @@ COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN mkdir -p /var/www/html/database \
-    && chown -R www-data:www-data /var/www/html/database
+    && mkdir -p /var/www/html/storage/sqlite \
+    && chown -R www-data:www-data /var/www/html/database \
+    && chown -R www-data:www-data /var/www/html/storage/sqlite
 
 EXPOSE 80
 

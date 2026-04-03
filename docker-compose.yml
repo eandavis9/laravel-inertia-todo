@@ -13,7 +13,7 @@ services:
       LOG_CHANNEL: stderr
       LOG_LEVEL: warning
       DB_CONNECTION: sqlite
-      DB_DATABASE: /var/www/html/database/database.sqlite
+      DB_DATABASE: /var/www/html/storage/sqlite/database.sqlite
       SESSION_DRIVER: database
       QUEUE_CONNECTION: database
       CACHE_STORE: database
@@ -21,7 +21,7 @@ services:
       FILESYSTEM_DISK: local
       BCRYPT_ROUNDS: "12"
     volumes:
-      - sqlite_data:/var/www/html/database
+      - sqlite_data:/var/www/html/storage/sqlite
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/up"]
       interval: 30s
