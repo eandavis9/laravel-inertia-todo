@@ -19,25 +19,29 @@ RUN npm run build
 # ─────────────────────────────────────────────
 FROM php:8.4-fpm-alpine AS production
 
+# Runtime dependencies only
 RUN apk add --no-cache \
     nginx \
     supervisor \
-    sqlite \
-    sqlite-dev \
-    libpng-dev \
-    oniguruma-dev \
-    libzip-dev \
-    curl \
-    unzip
+    sqlite-libs \
+    oniguruma \
+    libzip \
+    curl
 
-RUN docker-php-ext-install \
-    pdo \
-    pdo_sqlite \
-    mbstring \
-    zip \
-    bcmath \
-    opcache \
-    pcntl
+# Build dependencies: install, compile PHP extensions, then remove
+RUN apk add --no-cache --virtual .build-deps \
+        sqlite-dev \
+        oniguruma-dev \
+        libzip-dev \
+    && docker-php-ext-install \
+        pdo \
+        pdo_sqlite \
+        mbstring \
+        zip \
+        bcmath \
+        opcache \
+        pcntl \
+    && apk del .build-deps
 
 RUN { \
     echo "opcache.enable=1"; \
@@ -57,12 +61,14 @@ RUN composer install \
     --no-scripts \
     --no-autoloader \
     --prefer-dist \
-    --optimize-autoloader
+    --optimize-autoloader \
+    && rm -rf /root/.composer/cache
 
 COPY . .
 COPY --from=node-builder /app/public/build ./public/build
 
-RUN composer dump-autoload --optimize --no-dev
+RUN composer dump-autoload --optimize --no-dev \
+    && rm /usr/bin/composer
 
 RUN mkdir -p /var/www/html/storage/framework/views \
     && mkdir -p /var/www/html/storage/framework/cache/data \
