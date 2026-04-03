@@ -155,7 +155,7 @@ jobs:
               --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
               --region ${{ env.AWS_REGION }} \
               --query "Status" \
-              --output text 2>/dev/null || echo "Pending")
+              --output text 2>&1 || echo "Pending")
 
             echo "Status: $STATUS"
 
