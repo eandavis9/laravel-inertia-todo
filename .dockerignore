@@ -1,0 +1,48 @@
+# Version control
+.git
+.gitignore
+
+# Node
+node_modules
+
+# Laravel local files
+.env
+.env.*
+storage/pail
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+
+# SQLite database (created at runtime via volume)
+database/database.sqlite
+
+# Built assets (built inside Docker by Node stage)
+public/build
+public/hot
+
+# PHP dev tools
+vendor/.bin
+.phpunit.cache
+.phpunit.result.cache
+phpunit.xml.bak
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.log
+
+# Docker itself
+Dockerfile
+docker-compose*.yml
+docker/
+
+# CI
+.github
+
+# Docs
+README.md
+CLAUDE.md
+boost.json
