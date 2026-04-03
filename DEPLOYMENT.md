@@ -121,16 +121,19 @@ Create a dedicated IAM user with minimal permissions for CI/CD.
       "Resource": "arn:aws:ecr:ap-southeast-1:YOUR_ACCOUNT_ID:repository/laravel-inertia-todo"
     },
     {
-      "Sid": "SSMDeploy",
+      "Sid": "SSMSend",
       "Effect": "Allow",
-      "Action": [
-        "ssm:SendCommand",
-        "ssm:GetCommandInvocation"
-      ],
+      "Action": ["ssm:SendCommand"],
       "Resource": [
         "arn:aws:ssm:ap-southeast-1::document/AWS-RunShellScript",
         "arn:aws:ec2:ap-southeast-1:YOUR_ACCOUNT_ID:instance/*"
       ]
+    },
+    {
+      "Sid": "SSMPoll",
+      "Effect": "Allow",
+      "Action": ["ssm:GetCommandInvocation"],
+      "Resource": ["*"]
     }
   ]
 }
@@ -212,12 +215,11 @@ sudo dnf install -y docker
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 
-# Install Docker Compose V2 plugin (not available in AL2023 default repos)
-DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
-mkdir -p $DOCKER_CONFIG/cli-plugins
-curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
-  -o $DOCKER_CONFIG/cli-plugins/docker-compose
-chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+# Install Docker Compose V2 plugin system-wide (required for AWS SSM, which runs as root)
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # Log out and back in for group membership to take effect
 exit
@@ -397,3 +399,116 @@ docker stats
 - **SQLite**: Stored at `/mnt/data/sqlite/database.sqlite` on EC2. The `restart: unless-stopped` policy in docker-compose.yml ensures the container auto-starts after EC2 reboots.
 - **HTTPS**: Not configured. To add it later, use AWS Certificate Manager with an Application Load Balancer, or install Certbot on the EC2 instance.
 - **Free tier limits**: EC2 t2.micro is free for 750 hours/month (12 months). ECR is free for 500 MB/month. Monitor usage in the AWS Billing Dashboard.
+
+---
+
+## Troubleshooting Log
+
+Issues encountered during the first real deployment and how they were resolved.
+
+---
+
+### 1. GitHub Actions deploy job timed out (never detected SSM success)
+
+**Symptom:** Deploy job always timed out after 10 minutes with empty STDOUT/STDERR, even though the SSM command completed successfully on EC2 (visible in AWS Console → Systems Manager → Run Command).
+
+**Root cause:** The IAM inline policy for `github-actions-todo-deployer` had `ssm:GetCommandInvocation` scoped to specific ARNs (EC2 instance + SSM document). AWS requires this action to use `Resource: ["*"]` — scoping it fails silently. The polling loop used `|| echo "Pending"` which masked the `AccessDenied` error, making every poll appear as "still running".
+
+**Fix:** Split the SSM IAM statement into two:
+
+```json
+{
+  "Sid": "SSMSend",
+  "Effect": "Allow",
+  "Action": ["ssm:SendCommand"],
+  "Resource": [
+    "arn:aws:ssm:ap-southeast-1::document/AWS-RunShellScript",
+    "arn:aws:ec2:ap-southeast-1:YOUR_ACCOUNT_ID:instance/*"
+  ]
+},
+{
+  "Sid": "SSMPoll",
+  "Effect": "Allow",
+  "Action": ["ssm:GetCommandInvocation"],
+  "Resource": ["*"]
+}
+```
+
+**Lesson:** `ssm:GetCommandInvocation` cannot be scoped — always use `Resource: ["*"]` for it.
+
+---
+
+### 2. Docker Compose not found when SSM runs deploy commands
+
+**Symptom:** SSM deploy script failed with `docker compose: command not found` even though Docker Compose worked fine when logged in as `ec2-user`.
+
+**Root cause:** Docker Compose was installed to `~/.docker/cli-plugins/` (ec2-user's home directory). SSM runs commands as `root`, which looks for plugins in `/root/.docker/cli-plugins/` — a different path.
+
+**Fix:** Install Docker Compose system-wide so all users (including root) can access it:
+
+```bash
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+```
+
+**Lesson:** Always install Docker Compose to `/usr/local/lib/docker/cli-plugins/` on EC2, not to a user's home directory.
+
+---
+
+### 3. 500 error — "No migrations found" after successful deploy
+
+**Symptom:** App loaded but returned a 500 error. `php artisan migrate:status` inside the container returned "No migrations found."
+
+**Root cause:** The `docker-compose.yml` volume was mounted at `/var/www/html/database`, which shadowed the entire `database/` directory baked into the Docker image — including `database/migrations/`. Laravel couldn't find any migration files because the volume replaced them.
+
+**Fix:** Changed the volume mount point so it no longer overlaps with the migrations directory:
+
+```yaml
+# docker-compose.yml
+environment:
+  DB_DATABASE: /var/www/html/storage/sqlite/database.sqlite  # changed
+volumes:
+  - sqlite_data:/var/www/html/storage/sqlite  # changed
+```
+
+Also added the directory to the Dockerfile:
+
+```dockerfile
+RUN mkdir -p /var/www/html/storage/sqlite \
+    && chown -R www-data:www-data /var/www/html/storage/sqlite
+```
+
+On EC2, recreate the container to apply the new mount:
+
+```bash
+docker compose down -v
+docker compose up -d
+docker compose exec app php artisan migrate --force
+```
+
+**Lesson:** Never mount a Docker volume at a path that contains application files (like `database/`). Use a dedicated subdirectory (`storage/sqlite/`) that the app writes to at runtime.
+
+---
+
+### 4. docker-compose.yml changes not reflected after deploy
+
+**Symptom:** After pushing changes to `docker-compose.yml`, the container on EC2 still used the old configuration.
+
+**Root cause:** The GitHub Actions deploy pipeline only builds and pushes a new Docker image. The `docker-compose.yml` on EC2 (`/home/ec2-user/app/docker-compose.yml`) was placed there manually once during bootstrap and is never updated by CI/CD.
+
+**Fix (manual):** SCP the updated file to EC2 from your local machine whenever `docker-compose.yml` changes:
+
+```powershell
+# Windows PowerShell
+scp -i "laravel-todo-keypair.pem" docker-compose.yml ec2-user@YOUR_EC2_IP:/home/ec2-user/app/docker-compose.yml
+```
+
+Then recreate the container on EC2:
+
+```bash
+docker compose down -v && docker compose up -d
+```
+
+**Lesson:** The deploy pipeline does not manage `docker-compose.yml`. Any change to it requires a manual SCP to EC2 followed by a container restart.
